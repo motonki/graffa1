@@ -177,7 +177,11 @@ App::App(void)
 	model_changed_			(true),
 	shading_toggle_			(false),
 	shading_mode_changed_	(false),
-	camera_rotation_angle_	(0.0f)
+	camera_rotation_angle_	(0.0f),
+	object_rotation_angle	(0.0f),
+	x_scale_factor			(1.0f),
+	camera_distance			(2.1f),
+	camera_rotation_angle_z	(0.0f)
 {
 	static_assert(is_standard_layout<Vertex>::value, "struct Vertex must be standard layout to use offsetof");
 	initRendering();
@@ -261,6 +265,18 @@ bool App::handleEvent(const Window::Event& ev) {
 			translation[1] -= 0.05;
 		else if (ev.key == FW_KEY_PAGE_UP)
 			translation[1] += 0.05;
+		else if (ev.key == FW_KEY_Z)
+			object_rotation_angle -= 0.05 * FW_PI;
+		else if (ev.key == FW_KEY_X)
+			object_rotation_angle += 0.05 * FW_PI;
+		else if (ev.key == FW_KEY_A)
+			x_scale_factor -= 0.05;
+		else if (ev.key == FW_KEY_S)
+			x_scale_factor += 0.05;
+		else if (ev.key == FW_KEY_WHEEL_UP)
+			camera_distance += 0.05;
+		else if (ev.key == FW_KEY_WHEEL_DOWN)
+			camera_distance -= 0.05;
 	}
 	
 	if (ev.type == Window::EventType_KeyUp) {
@@ -272,6 +288,20 @@ bool App::handleEvent(const Window::Event& ev) {
 		// Event::mouseDragging tells whether some mouse buttons are currently down.
 		// If you want to know which ones, you have to keep track of the button down/up events
 		// (e.g. FW_KEY_MOUSE_LEFT).
+		if ((ev.mouseDragging == true))
+		{
+			//camera_rotation_angle_ += sqrt((ev.mouseDelta[0]*ev.mouseDelta[0]+ ev.mouseDelta[1] * ev.mouseDelta[1])*0.0005f);
+			//camera_rotation_angle_ += ev.mouseDelta[0] * 0.05f * FW_PI;
+			camera_rotation_angle_ += 0.005f * ev.mouseDelta[0];
+			camera_rotation_angle_z += 0.005f * ev.mouseDelta[1];
+			if (!camera_pos_old[0]) {
+				camera_pos_cur = Vec3f(0, 0, camera_distance);
+			}
+			camera_pos_old = camera_pos_cur;
+			camera_pos_cur[0] += camera_rotation_angle_;
+			camera_pos_cur[1] += camera_rotation_angle_z;
+			camera_pos_cur[2] = sqrt(camera_distance * camera_distance - camera_pos_cur[0] * camera_pos_cur[0] - camera_pos_cur[1] * camera_pos_cur[1]);
+		}
 	}
 
 	if (ev.type == Window::EventType_Close) {
@@ -346,6 +376,8 @@ void App::initRendering() {
 		void main()
 		{
 			// EXTRA: oops, someone forgot to transform normals here...
+			
+
 			float clampedCosine = clamp(dot(aNormal, directionToLight), 0.0, 1.0);
 			vec3 litColor = vec3(clampedCosine);
 			vec3 generatedColor = distinctColors[gl_VertexID % 6];
@@ -387,13 +419,18 @@ void App::render() {
 	// when it starts drawing them.
 
 	// Our camera is aimed at origin, and orbits around origin at fixed distance.
-	static const float camera_distance = 2.1f;	
+	//static const float camera_distance = 2.1f;	
 	Mat4f C;
-	Mat3f rot = Mat3f::rotation(Vec3f(0, 1, 0), -camera_rotation_angle_);
+	camera_rotation_axis = cross(camera_pos_old, camera_pos_cur);
+	camera_rotation_axis.normalize();
+	float camera_rotation_total = camera_rotation_axis.length() / (camera_pos_cur.length()*camera_pos_old.length());
+	//Mat3f rot = Mat3f::rotation(camera_rotation_axis, -camera_rotation_total);
+	Mat3f rot = Mat3f::rotation(Vec3f(0,1,0), -camera_rotation_angle_ * FW_PI);
 	C.setCol(0, Vec4f(rot.getCol(0), 0));
 	C.setCol(1, Vec4f(rot.getCol(1), 0));
 	C.setCol(2, Vec4f(rot.getCol(2), 0));
-	C.setCol(3, Vec4f(0, 0, camera_distance, 1));
+	//C.setCol(3, Vec4f(camera_pos_cur, 1));
+	C.setCol(3, Vec4f(0,0,camera_distance, 1));
 	
 	// Simple perspective.
 	static const float fnear = 0.1f, ffar = 4.0f;
@@ -419,11 +456,22 @@ void App::render() {
 	// YOUR CODE HERE (R1)
 	// Set the model space -> world space transform to translate the model according to user input.
 	Mat4f modelToWorld;
+	Mat4f objR;
 	Mat4f trans = Mat4f::translate(translation);
-	modelToWorld.setCol(0, trans.getCol(0));
-	modelToWorld.setCol(1, trans.getCol(1));
-	modelToWorld.setCol(2, trans.getCol(2));
-	modelToWorld.setCol(3, trans.getCol(3));
+	Mat3f rotation(Mat3f::rotation(Vec3f(0, 1, 0), -object_rotation_angle));
+	//Mat3f obj_rotation = Mat3f::rotation(Vec3f(0, 1, 0), -object_rotation_angle);
+	rotation(0, 0) *= x_scale_factor; //scale just the x-axis
+
+
+	objR.setCol(0, Vec4f(rotation.getCol(0), 0));
+	objR.setCol(1, Vec4f(rotation.getCol(1), 0));
+	objR.setCol(2, Vec4f(rotation.getCol(2), 0));
+	objR.setCol(3, Vec4f(trans.getCol(3)));
+
+	modelToWorld.setCol(0, objR.getCol(0));
+	modelToWorld.setCol(1, objR.getCol(1));
+	modelToWorld.setCol(2, objR.getCol(2));
+	modelToWorld.setCol(3, objR.getCol(3));
 	
 	// Draw the model with your model-to-world transformation.
 	glUniformMatrix4fv(gl_.model_to_world_uniform, 1, GL_FALSE, modelToWorld.getPtr());

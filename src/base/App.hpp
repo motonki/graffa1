@@ -61,10 +61,17 @@ private:
 	std::vector<Vertex>	vertices_;
 
 	float				camera_rotation_angle_;
+	float				camera_rotation_angle_z;
+	Vec3f				camera_pos_old;
+	Vec3f				camera_pos_cur;
+	Vec3f				camera_rotation_axis;
 
 	// YOUR CODE HERE (R1)
 	// Add a class member to store the current translation.
 	Vec3f translation;
+	float object_rotation_angle;
+	float x_scale_factor;
+	float camera_distance;
 	// EXTRA:
 	// For animation extra credit you can use the framework's Timer class.
 	// The .start() and .unstart() methods start and stop the timer; when it's

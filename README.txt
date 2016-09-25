@@ -53,6 +53,10 @@ R2 Generating a simple cone mesh and normals (3p): done
 
 # Did you do any extra credit work?
 
+Rotation along y-axis (keys Z and X) and scale along the x-axis (keys A and S)
+Tried virtual trackball, code is commented out and calculations are in mouse event handler. Got some stuff okay, but can't really figure out what is missing.
+
+
 (Describe what you did and, if there was a substantial amount of work involved, how you did it. Also describe how to use/activate your extra features, if they are interactive.)
 
 # Are there any known problems/bugs remaining in your code?
